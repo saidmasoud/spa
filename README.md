@@ -15,6 +15,8 @@ The following Java/Spring project contains three Spring Batch jobs:
 * spa___r2___data__load: Read an R-2 XML file and write the data to a database.
 * spa___excel___generator: Read the R-1 and R-2 data from the database and populate an Excel template.
 
+The R-1 and R-2 data is unclassified and publicly available from [DTIC (Defense Technical Information Center)](https://www.dtic.mil)
+
 ----
 ## R-1 Data Load
 
