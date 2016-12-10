@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:file="http://www.springframework.org/schema/integration/file"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans	
+	http://www.springframework.org/schema/beans/spring-beans.xsd 	
+	http://www.springframework.org/schema/integration/file 
+	http://www.springframework.org/schema/integration/file/spring-integration-file.xsd
+    http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/batch 
+    http://www.springframework.org/schema/batch/spring-batch.xsd
+    http://www.springframework.org/schema/context 
+    http://www.springframework.org/schema/context/spring-context.xsd 	
+	http://www.springframework.org/schema/util 
+	http://www.springframework.org/schema/util/spring-util.xsd
+	http://www.springframework.org/schema/task
+    http://www.springframework.org/schema/task/spring-task.xsd
+    http://www.springframework.org/schema/jdbc 
+	http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
+
+	<import resource="data-source-context.xml" />
+	<import resource="job-launcher-context.xml" />
+
+	<batch:job id="spa_r1_data_load">
+		<batch:step id="loadData" next="createExcel">
+			<batch:partition step="loadDataStep" partitioner="excelFilePartitioner" />
+		</batch:step>
+	</batch:job>
+
+	<batch:step id="loadDataStep">
+		<batch:tasklet>
+			<batch:chunk reader="excelReader" processor="peProcessor"
+				writer="dbWriter" commit-interval="1" />
+		</batch:tasklet>
+	</batch:step>
+
+	<bean id="excelFilePartitioner" class="com.mason.seor.partitioner.FilePartitioner">
+		<property name="fileLocationsProp" value="${file.location}" />
+		<property name="fileNamesProp" value="${file.names:#{null}}" />
+		<property name="extension" value=".xlsx" />
+	</bean>
+
+	<bean id="excelReader" class="com.mason.seor.reader.R1ExcelReader"
+		scope="step">
+		<property name="fileLocation" value="#{stepExecutionContext['file.location']}" />
+	</bean>
+
+	<bean id="peProcessor" class="com.mason.seor.processor.R1Processor"
+		scope="step">
+		<property name="fileName" value="#{stepExecutionContext['file.name']}" />
+	</bean>
+
+	<bean id="dbWriter"
+		class="org.springframework.batch.item.database.HibernateItemWriter">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	
+</beans>

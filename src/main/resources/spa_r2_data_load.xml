@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:file="http://www.springframework.org/schema/integration/file"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans	
+	http://www.springframework.org/schema/beans/spring-beans.xsd 	
+	http://www.springframework.org/schema/integration/file 
+	http://www.springframework.org/schema/integration/file/spring-integration-file.xsd
+    http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/batch 
+    http://www.springframework.org/schema/batch/spring-batch.xsd
+    http://www.springframework.org/schema/context 
+    http://www.springframework.org/schema/context/spring-context.xsd 	
+	http://www.springframework.org/schema/util 
+	http://www.springframework.org/schema/util/spring-util.xsd
+	http://www.springframework.org/schema/task
+    http://www.springframework.org/schema/task/spring-task.xsd
+    http://www.springframework.org/schema/jdbc 
+	http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
+
+	<import resource="data-source-context.xml" />
+	<import resource="job-launcher-context.xml" />
+
+	<batch:job id="spa_r2_data_load">
+		<batch:step id="loadData" next="runSql">
+			<batch:partition step="loadDataStep" partitioner="filePartitioner" />
+		</batch:step>
+		<batch:step id="runSql">
+			<batch:tasklet ref="runSqlTasklet"/>
+		</batch:step>
+	</batch:job>
+
+	<batch:step id="loadDataStep">
+		<batch:tasklet>
+			<batch:chunk reader="xmlItemReader" processor="peProcessor"
+				writer="dbWriter" commit-interval="1" />
+		</batch:tasklet>
+		<batch:listeners>
+			<batch:listener ref="listener" />
+		</batch:listeners>
+	</batch:step>
+
+	<bean id="listener" class="com.mason.seor.listener.FileListener"
+		scope="step">
+		<property name="fileName" value="#{stepExecutionContext['file.location']}" />
+	</bean>
+
+	<bean id="filePartitioner" class="com.mason.seor.partitioner.FilePartitioner">
+		<property name="fileLocationsProp" value="${file.location}" />
+		<property name="fileNamesProp" value="${file.names:#{null}}" />
+		<property name="extension" value=".xml" />
+	</bean>
+
+	<bean id="xmlItemReader" class="org.springframework.batch.item.xml.StaxEventItemReader"
+		scope="step">
+		<property name="resource" value="#{stepExecutionContext['file.location']}" />
+		<property name="fragmentRootElementName" value="ProgramElement" />
+		<property name="unmarshaller" ref="xstreamMarshaller" />
+	</bean>
+
+	<bean id="xstreamMarshaller" class="com.mason.seor.marshaller.IgnoringXstreamMarshaller">
+		<property name="autodetectAnnotations" value="true" />
+		<property name="aliases">
+			<map>
+				<entry key="ProgramElement" value="com.mason.seor.model.r2.ProgramElement" />
+				<entry key="ProgramElementFunding" value="com.mason.seor.model.r2.ProgramElementFunding" />
+			</map>
+		</property>
+	</bean>
+
+	<bean id="peProcessor" class="com.mason.seor.processor.R2Processor"
+		scope="step" />
+
+	<bean id="dbWriter"
+		class="org.springframework.batch.item.database.HibernateItemWriter">
+		<property name="sessionFactory" ref="sessionFactory" />
+	</bean>
+	
+	<bean id="runSqlTasklet" class="com.mason.seor.tasklet.RunSqlTasklet">
+		<property name="dataSource" ref="dataSource"/>
+		<property name="replace" value="year"/>
+		<property name="sqlTemplate" value="insert ignore into r2
+	select pe, pe_title, year, 'PB', CURRENT_DATE, service_agency_name,appropriation_code,appropriation_name,ba,ba_title,current_timestamp,
+ 0,0,0,0,0,0,0,0,0,0,0,0,0,0 from r2 r21 where r21.pe in(select distinct r22.pe from r2 r22 where r22.pe not in(select distinct r23.pe from r2 r23 where Budget_Year=year) group by r22.pe)"/>
+ 		<property name="years">
+ 			<list>
+ 				<value>2010</value>
+ 				<value>2011</value>
+ 				<value>2012</value>
+ 				<value>2013</value>
+ 				<value>2014</value>
+ 				<value>2015</value>
+ 				<value>2016</value>
+ 				<value>2017</value>
+ 			</list>
+ 		</property>
+	</bean>
+	
+
+</beans>

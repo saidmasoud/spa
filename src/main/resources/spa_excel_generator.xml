@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:aop="http://www.springframework.org/schema/aop" xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:task="http://www.springframework.org/schema/task" xmlns:file="http://www.springframework.org/schema/integration/file"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc" xmlns:util="http://www.springframework.org/schema/util"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans	
+	http://www.springframework.org/schema/beans/spring-beans.xsd 	
+	http://www.springframework.org/schema/integration/file 
+	http://www.springframework.org/schema/integration/file/spring-integration-file.xsd
+    http://www.springframework.org/schema/beans 
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/batch 
+    http://www.springframework.org/schema/batch/spring-batch.xsd
+    http://www.springframework.org/schema/context 
+    http://www.springframework.org/schema/context/spring-context.xsd 	
+	http://www.springframework.org/schema/util 
+	http://www.springframework.org/schema/util/spring-util.xsd
+	http://www.springframework.org/schema/task
+    http://www.springframework.org/schema/task/spring-task.xsd
+    http://www.springframework.org/schema/jdbc 
+	http://www.springframework.org/schema/jdbc/spring-jdbc.xsd">
+
+	<import resource="data-source-context.xml" />
+	<import resource="job-launcher-context.xml" />
+
+	<batch:job id="spa_excel_generator">
+		<batch:step id="populateR1Data" next="populateR2Data">
+			<batch:tasklet>
+				<batch:chunk reader="r1HibernateReader" writer="r1TemplateWriter"
+					commit-interval="1" />
+			</batch:tasklet>
+		</batch:step>
+		<batch:step id="populateR2Data">
+			<batch:tasklet>
+				<batch:chunk reader="r2HibernateReader" writer="r2TemplateWriter"
+					commit-interval="1" />
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+	<bean id="r1HibernateReader"
+		class="org.springframework.batch.item.database.HibernateCursorItemReader">
+		<property name="queryString" value="from R1ProgramElement" />
+		<property name="sessionFactory" ref="sessionFactory" />
+		<property name="fetchSize" value="999999" />
+	</bean>
+
+	<bean id="r2HibernateReader"
+		class="org.springframework.batch.item.database.HibernateCursorItemReader">
+		<property name="queryString" value="from R2ProgramElement" />
+		<property name="sessionFactory" ref="sessionFactory" />
+		<property name="fetchSize" value="999999" />
+	</bean>
+
+	<bean id="r1TemplateWriter" class="com.mason.seor.writer.R1ExcelWriter">
+		<property name="template" value="${excel.template}" />
+		<property name="excelEndLocation" value="${excel.end.location}" />
+	</bean>
+	
+	<bean id="r2TemplateWriter" class="com.mason.seor.writer.R2ExcelWriter">
+		<property name="excelLocation" value="${excel.end.location}" />
+		<property name="vbsEndLocation" value="${vbs.end.location}" />
+		<property name="vbsScript" value="${vbs.script}" />
+	</bean>
+
+
+
+</beans>
